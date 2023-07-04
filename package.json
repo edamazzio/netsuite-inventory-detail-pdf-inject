@@ -1,0 +1,33 @@
+{
+  "name": "netsuite-inventory-detail-pdf-inject",
+  "version": "1.0.0",
+  "description": "A user event script that injects the inventory detail details (lol) to be able to extract mainly the lot expiration date and use it on PDF templates",
+  "main": "suitecloud.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edamazzio/netsuite-inventory-detail-pdf-inject.git"
+  },
+  "keywords": [
+    "netsuite",
+    "suitescript",
+    "userevent",
+    "typescript",
+    "advanced",
+    "pdf",
+    "html",
+    "freemarker"
+  ],
+  "author": "Esteban Damazio <edamazzio@gmail.com>",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/edamazzio/netsuite-inventory-detail-pdf-inject/issues"
+  },
+  "homepage": "https://github.com/edamazzio/netsuite-inventory-detail-pdf-inject#readme",
+  "devDependencies": {
+    "@hitc/netsuite-types": "^2023.1.10",
+    "typescript": "^5.1.6"
+  }
+}
