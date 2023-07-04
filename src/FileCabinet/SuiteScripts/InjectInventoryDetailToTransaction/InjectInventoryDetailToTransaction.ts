@@ -6,39 +6,53 @@
  */
 
 import {EntryPoints} from "N/types";
-import {FieldDisplayType, FieldType} from "N/ui/serverWidget";
+import {FieldDisplayType, FieldType, Form} from "N/ui/serverWidget";
 import {log, record, search} from "N";
 import {LookupValueObject} from "N/search";
 
+const FIELD_ID = "custpage_inj_inventory_detail";
 
 export function beforeLoad(context: EntryPoints.UserEvent.beforeLoadContext) {
 
-    log.debug("context.type", context.type);
+    if (context.type == context.UserEventType.PRINT) {
+        injectInventoryDetail(context)
+    }
+}
 
-    const inventoryDetailFieldId = "custpage_inj_inventory_detail";
+function injectInventoryDetail(context: EntryPoints.UserEvent.beforeLoadContext) {
     const {type, id} = context.newRecord;
     if (!type || !id) {
         return;
     }
-    const currentRecord = record.load({id, type});
+    addFormField(context.form);
+    const tranasctionRecord = record.load({id, type, isDynamic: false});
+    const inventoryDetails = buildInventoryDetailJSON(tranasctionRecord);
+    log.debug(`Inventory details for ${type} ${id}`, inventoryDetails);
+    context.newRecord.setValue({fieldId: FIELD_ID, value: JSON.stringify(inventoryDetails)});
+}
 
-    context.form.addField({
-        id: inventoryDetailFieldId,
-        label: "",
+function addFormField(form: Form) {
+    form.addField({
+        id: FIELD_ID,
+        label: FIELD_ID,
         type: FieldType.LONGTEXT
     }).updateDisplayType({displayType: FieldDisplayType.HIDDEN});
+}
 
-    const itemCount = currentRecord.getLineCount({sublistId: "item"});
+function buildInventoryDetailJSON(transactionRecord: record.Record) {
+    const itemCount = transactionRecord.getLineCount({sublistId: "item"});
     const inventoryDetails = {};
     for (let line = 0; line < itemCount; line++) {
-        const inventoryDetailId = currentRecord.getSublistValue({sublistId: "item", line, fieldId: "inventorydetail"});
+        const inventoryDetailId = transactionRecord.getSublistValue({
+            sublistId: "item",
+            line,
+            fieldId: "inventorydetail"
+        });
         if (inventoryDetailId) {
             inventoryDetails[line] = getInventoryDetail(inventoryDetailId as string)
         }
     }
-
-    context.newRecord.setValue({fieldId: inventoryDetailFieldId, value: JSON.stringify(inventoryDetails)});
-
+    return inventoryDetails;
 }
 
 function getInventoryDetail(inventoryDetailId: string) {
@@ -48,12 +62,5 @@ function getInventoryDetail(inventoryDetailId: string) {
         columns: ["inventorynumber", "expirationdate"]
     });
 
-    const inventoryNumber = inventoryDetail.inventorynumber as LookupValueObject[]
-
-    inventoryDetail.inventorynumber = inventoryNumber && inventoryNumber.length ?
-        inventoryDetail.inventorynumber[0].text
-        : "";
-
     return inventoryDetail;
-
 }
