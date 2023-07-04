@@ -146,3 +146,6 @@ Thumbs.db
 
 src/FileCabinet/**/*.js
 src/Excluded\ Objects/**/*.js
+
+# NetSuite
+project.json
