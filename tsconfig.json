@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "module": "amd",
+    "target": "esnext",
+    "moduleResolution":"node",
+    "sourceMap": false,
+    "newLine": "LF",
+    "experimentalDecorators": true,
+    "baseUrl": ".",
+    "lib": ["esnext", "dom"],
+    "paths": {
+      "N": ["node_modules/@hitc/netsuite-types/N"],
+      "N/*": ["node_modules/@hitc/netsuite-types/N/*"]
+    }
+  },
+  "exclude": ["node_modules"]
+}
