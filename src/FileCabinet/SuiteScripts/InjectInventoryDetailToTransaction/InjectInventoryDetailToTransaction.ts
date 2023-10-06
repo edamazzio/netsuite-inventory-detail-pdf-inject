@@ -8,7 +8,12 @@
 import {EntryPoints} from "N/types";
 import {FieldDisplayType, FieldType, Form} from "N/ui/serverWidget";
 import {log, record, search} from "N";
-import {LookupValueObject} from "N/search";
+import {
+    InventoryDetail,
+    InventoryDetailById,
+    InventoryDetailIdPerLine,
+    IventoryDetailsByLine
+} from "./InventoryDetail-Types";
 
 const FIELD_ID = "custpage_inj_inventory_detail";
 
@@ -26,9 +31,11 @@ function injectInventoryDetail(context: EntryPoints.UserEvent.beforeLoadContext)
     }
     addFormField(context.form);
     const tranasctionRecord = record.load({id, type, isDynamic: false});
-    const inventoryDetails = buildInventoryDetailJSON(tranasctionRecord);
-    log.debug(`Inventory details for ${type} ${id}`, inventoryDetails);
-    context.newRecord.setValue({fieldId: FIELD_ID, value: JSON.stringify(inventoryDetails)});
+    const inventoryDetailsPerLine = getInventoryDetailsPerLine(tranasctionRecord);
+    const inventoryDetailData = searchInventoryDetails(Object.values(inventoryDetailsPerLine));
+    const inventoryDetailsJSON = buildInventoryDetailsJSON(inventoryDetailData, inventoryDetailsPerLine);
+    log.debug(`Inventory details for ${type} ${id}`, inventoryDetailsJSON);
+    context.newRecord.setValue({fieldId: FIELD_ID, value: JSON.stringify(inventoryDetailsJSON)});
 }
 
 function addFormField(form: Form) {
@@ -39,9 +46,9 @@ function addFormField(form: Form) {
     }).updateDisplayType({displayType: FieldDisplayType.HIDDEN});
 }
 
-function buildInventoryDetailJSON(transactionRecord: record.Record) {
+function getInventoryDetailsPerLine(transactionRecord: record.Record): InventoryDetailIdPerLine {
     const itemCount = transactionRecord.getLineCount({sublistId: "item"});
-    const inventoryDetails = {};
+    const inventoryDetailIdPerLine = {};
     for (let line = 0; line < itemCount; line++) {
         const inventoryDetailId = transactionRecord.getSublistValue({
             sublistId: "item",
@@ -49,18 +56,52 @@ function buildInventoryDetailJSON(transactionRecord: record.Record) {
             fieldId: "inventorydetail"
         });
         if (inventoryDetailId) {
-            inventoryDetails[line] = getInventoryDetail(inventoryDetailId as string)
+            inventoryDetailIdPerLine[line.toString()] = inventoryDetailId
         }
     }
-    return inventoryDetails;
+    return inventoryDetailIdPerLine;
 }
 
-function getInventoryDetail(inventoryDetailId: string) {
-    const inventoryDetail = search.lookupFields({
+function searchInventoryDetails(inventoryDetailIds: string[]): InventoryDetailById {
+    if (!inventoryDetailIds || !inventoryDetailIds.length) {
+        return {};
+    }
+    const inventorydetailSearchResults = search.create({
         type: "inventorydetail",
-        id: inventoryDetailId,
-        columns: ["inventorynumber", "expirationdate"]
-    });
+        filters:
+            [
+                search.createFilter({name: "internalid", operator: search.Operator.ANYOF, values: inventoryDetailIds})
+            ],
+        columns:
+            [
+                search.createColumn({
+                    name: "inventorynumber",
+                }),
+                search.createColumn({name: "expirationdate"}),
+                search.createColumn({name: "quantity"}),
+            ]
+    }).run().getRange({start: 0, end: 1000});
+    const inventoryDetailsById: InventoryDetailById = {};
+    for (const inventorydetailSearchResult of inventorydetailSearchResults) {
+        const id = inventorydetailSearchResult.id;
+        const inventoryDetail: InventoryDetail = {
+            expirationdate: inventorydetailSearchResult.getValue("expirationdate")?.toString(),
+            inventorynumber: inventorydetailSearchResult.getText("inventorynumber"),
+            quantity: inventorydetailSearchResult.getValue("quantity")?.toString(),
+        };
+        if (!inventoryDetailsById[id.toString()]) {
+            inventoryDetailsById[id.toString()] = [inventoryDetail]
+        } else {
+            inventoryDetailsById[id.toString()].push(inventoryDetail)
+        }
+    }
+    return inventoryDetailsById;
+}
 
+function buildInventoryDetailsJSON(inventoryDetailById: InventoryDetailById, inventoryDetailIdPerLine: InventoryDetailIdPerLine): IventoryDetailsByLine {
+    const inventoryDetail: IventoryDetailsByLine = {};
+    for (const [line, inventoryId] of Object.entries(inventoryDetailIdPerLine)) {
+        inventoryDetail[line] = inventoryDetailById[inventoryId]
+    }
     return inventoryDetail;
 }
